@@ -170,6 +170,7 @@ int main(int argc, char **argv) {
 
   if (!f_auto) {
     printf("Starting Carla\n");
+    system("deadsec -s 2048");
     if (f_show) {
       system(START_CARLA_SHOW);
     } else {
