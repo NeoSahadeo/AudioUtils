@@ -1,5 +1,4 @@
-audioboot
-deadsec
 build/
 CMakeLists.txt
 .cache
+result
