@@ -7,10 +7,23 @@ stdenv.mkDerivation {
 
   src = ./.;
 
-  buildInputs = with pkgs; [
-    gcc
-    gnumake
+  nativeBuildInputs = [
     meson
     ninja
+    pkg-config
   ];
+
+  mesonBuildType = "release";
+
+  configurePhase = ''
+    meson setup $out
+  '';
+
+  buildPhase = ''
+    ninja -C $out
+  '';
+
+  installPhase = ''
+    ninja -C $out install
+  '';
 }
