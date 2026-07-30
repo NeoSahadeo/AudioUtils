@@ -16,14 +16,14 @@ stdenv.mkDerivation {
   mesonBuildType = "release";
 
   configurePhase = ''
-    meson setup $out
+    meson setup build --prefix=$out
   '';
 
   buildPhase = ''
-    ninja -C $out
+    ninja -C build
   '';
 
   installPhase = ''
-    ninja -C $out install
+    ninja -C build install
   '';
 }
