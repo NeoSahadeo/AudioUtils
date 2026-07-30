@@ -1,12 +1,13 @@
-/* Audioboot - Neo Sahadeo 2025
+/* Audioboot - Neo Sahadeo 2026
  * MIT LICENSE
  * */
 
-#define _GNU_SOURCE
+#define STB_ARGPARSE_IMPLEMENTATION
+#include "stb_argparse.h"
+
+#define __USE_GNU
 #include <pthread.h>
 #include <signal.h>
-#include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/prctl.h>
@@ -17,7 +18,6 @@
 #define CARLA_PROCESS "carla-jack-multi"
 #define SINK_NAME "Default-Sink"
 #define SOURCE_NAME "Virtual-Source"
-#define DEFAULT_TIMEOUT 5
 
 #define LOAD_SINK(name) "pactl load-module module-null-sink sink_name=" name
 #define LOAD_SOURCE(name) \
@@ -26,20 +26,8 @@
 #define UNLOAD_SINK "pactl unload-module module-null-sink"
 #define UNLOAD_SOURCE "pactl unload-module module-pipe-source"
 
-#define START_CARLA                                                      \
-  "nohup carla-jack-multi /home/neosahadeo/.audio/multiConf.carxp -n > " \
-  "/dev/null 2>&1 &"
-#define START_CARLA_SHOW                                              \
-  "nohup carla-jack-multi /home/neosahadeo/.audio/multiConf.carxp > " \
-  "/dev/null 2>&1 &"
-
-bool parse_toggle_flag(int argc, char** argv, const char* flag_name) {
-  for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], flag_name) == 0)
-      return true;
-  }
-  return false;
-}
+int timeout = 5;
+char command_buffer[1024] = {0};
 
 int pactl_search(const char* name) {
   char buffer[1024];
@@ -99,55 +87,77 @@ pthread_t create_thread(void* (*func)(void*)) {
 void* audio_start_auto() {
   for (;;) {
     int id = get_id(CARLA_PROCESS);
-#ifdef NDEBUG
-    printf("Checking if Carla is running: %d\n", id);
-#endif
     if (id <= 0) {
-#ifdef NDEBUG
-      printf("Starting Carla\n");
-#endif
-      system(START_CARLA);
+      system(command_buffer);
     }
 
-    sleep(DEFAULT_TIMEOUT);
+    sleep(timeout);
   }
   return NULL;
 }
 
-int main(int argc, char** argv) {
-  const bool f_show = parse_toggle_flag(argc, argv, "show");
-  const bool f_auto = parse_toggle_flag(argc, argv, "auto");
-  const bool f_kill = parse_toggle_flag(argc, argv, "kill");
-
+void kill_zone() {
   int selfid = get_id(PROGRAM_NAME);
   if (selfid > 0) {
-#ifdef NDEBUG
-    printf("Killing %s: %d\n", PROGRAM_NAME, selfid);
-#endif
     kill(selfid, SIGKILL);
   }
 
   int carlaid = get_id(CARLA_PROCESS);
   if (carlaid > 0) {
-#ifdef NDEBUG
-    printf("Killing Carla: %d\n", carlaid);
-#endif
     kill(carlaid, SIGKILL);
   }
+}
 
-  if (f_kill) {
+int main(int argc, char** argv) {
+  const char* route_file = 0;
+  char carla_show_flag[2] = "-n";
+  bool display = false;
+  bool killaudioboot = false;
+  bool autostart = true;
+
+  argument_parser_t parser;
+  argparse_init(&parser, argc, argv, "Program description", "Epilog text");
+
+  argparse_arg_t args[] = {
+      ARGPARSE_POSITIONAL(STRING, "--conf", &route_file,
+                          "multijack config for Carla"),
+      ARGPARSE_TOGGLE('d', "--display", &display,
+                      "display carla, default is false"),
+      ARGPARSE_TOGGLE('a', "--auto", &autostart,
+                      "auto restart carla if it closes, default is true"),
+      ARGPARSE_TOGGLE('k', "--kill", &killaudioboot,
+                      "kill carla and audioboot"),
+      ARGPARSE_OPTION(
+          INT, 's', "--sleep", &timeout,
+          "how often audioboot checks for a crash, default is 5 seconds"),
+  };
+
+  argparse_add_arguments(&parser, args, 5);
+  argparse_parse_args(&parser);
+
+  if (killaudioboot) {
+    kill_zone();
     unload_sink_source();
     return 0;
   }
 
-  /* Reset sinks on load */
+  if (route_file == 0) {
+    argparse_print_help(&parser);
+    return 1;
+  }
+
+  if (display) {
+    carla_show_flag[0] = ' ';
+    carla_show_flag[1] = ' ';
+  }
+
+  sprintf(command_buffer, "nohup carla-jack-multi %s %s > /dev/null 2>&1 &",
+          route_file, carla_show_flag);
+
+  kill_zone();
   reset_sink_source();
 
-  /* Generate a thread if auto is selected */
-  if (f_auto) {
-#ifdef NDEBUG
-#endif
-    printf("Starting Auto Carla\n");
+  if (autostart) {
     strncpy(argv[0], PROGRAM_NAME, strlen(argv[0]));
     prctl(PR_SET_NAME, (unsigned long)PROGRAM_NAME, 0, 0, 0);
 
@@ -157,14 +167,7 @@ int main(int argc, char** argv) {
     pthread_exit(0);
   }
 
-#ifdef NDEBUG
-  printf("Starting Carla\n");
-#endif
-  if (f_show) {
-    system(START_CARLA_SHOW);
-  } else {
-    system(START_CARLA);
-  }
+  system(command_buffer);
 
   return 0;
 }
