@@ -20,8 +20,9 @@
 #define SOURCE_NAME "Virtual-Source"
 
 #define LOAD_SINK(name) "pactl load-module module-null-sink sink_name=" name
-#define LOAD_SOURCE(name) \
-  "pactl load-module module-pipe-source source_name=" name
+#define LOAD_SOURCE(name)                                                \
+  "pactl load-module module-null-sink media.class=Audio/Source/Virtual " \
+  "sink_name=" name
 
 #define UNLOAD_SINK "pactl unload-module module-null-sink"
 #define UNLOAD_SOURCE "pactl unload-module module-pipe-source"
