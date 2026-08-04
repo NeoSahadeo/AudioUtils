@@ -20,12 +20,11 @@
 #define SOURCE_NAME "Virtual-Source"
 
 #define LOAD_SINK(name) "pactl load-module module-null-sink sink_name=" name
-#define LOAD_SOURCE(name)                                                \
-  "pactl load-module module-null-sink media.class=Audio/Source/Virtual " \
-  "sink_name=" name
+#define LOAD_SOURCE                                                       \
+  "pactl load-module module-null-sink  media.class=Audio/Source/Virtual " \
+  "sink_name=Virtal-Source  channel_map=front-left,front-right"
 
 #define UNLOAD_SINK "pactl unload-module module-null-sink"
-#define UNLOAD_SOURCE "pactl unload-module module-pipe-source"
 
 int timeout = 5;
 char command_buffer[1024] = {0};
@@ -44,16 +43,13 @@ int pactl_search(const char* name) {
 }
 
 void load_sink_source() {
-  system(LOAD_SOURCE(SOURCE_NAME));  // must be loaded first
+  system(LOAD_SOURCE);  // must be loaded first
   system(LOAD_SINK(SINK_NAME));
 }
 
 void unload_sink_source() {
   if (pactl_search(SINK_NAME) > 0) {
     system(UNLOAD_SINK);
-  }
-  if (pactl_search(SOURCE_NAME) > 0) {
-    system(UNLOAD_SOURCE);
   }
 }
 
