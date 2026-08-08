@@ -148,8 +148,9 @@ int main(int argc, char** argv) {
     carla_show_flag[1] = ' ';
   }
 
-  sprintf(command_buffer, "nohup carla-jack-multi %s %s > /dev/null 2>&1 &",
-          route_file, carla_show_flag);
+  sprintf(command_buffer,
+          "nohup pw-jack carla-jack-multi %s %s > /dev/null 2>&1 &", route_file,
+          carla_show_flag);
 
   kill_zone();
   reset_sink_source();
