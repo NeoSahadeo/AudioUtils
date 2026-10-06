@@ -6,3 +6,9 @@ executable(
 'audioboot.c',
 install: true,
 )
+
+executable(
+'deadsec', 
+'deadsec.c',
+# install: true,
+)

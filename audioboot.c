@@ -14,7 +14,8 @@
 #include <unistd.h>
 
 #define PROGRAM_NAME "_Audioboot"
-#define THREAD_NAME "audiobootthread"  // max 16 chars longs
+#define THREAD_NAME_AUDIOBOOT "audiobootauto"  // max 16 chars longs
+#define THREAD_NAME_POLL "audiobootpoll"       // max 16 chars longs
 #define CARLA_PROCESS "carla-jack-multi"
 #define SINK_NAME "Default-Sink"
 #define SOURCE_NAME "Virtual-Source"
@@ -28,6 +29,7 @@
 
 int timeout = 5;
 char command_buffer[1024] = {0};
+const char* polling_command;
 
 int pactl_search(const char* name) {
   char buffer[1024];
@@ -93,6 +95,14 @@ void* audio_start_auto() {
   return NULL;
 }
 
+void* poll_request() {
+  for (;;) {
+    system(polling_command);
+    sleep(2);
+  }
+  return NULL;
+}
+
 void kill_zone() {
   int selfid = get_id(PROGRAM_NAME);
   if (selfid > 0) {
@@ -127,9 +137,13 @@ int main(int argc, char** argv) {
       ARGPARSE_OPTION(
           INT, 's', "--sleep", &timeout,
           "how often audioboot checks for a crash, default is 5 seconds"),
+
+      ARGPARSE_OPTION(
+          STRING, 'c', "--callback", &polling_command,
+          "Run a callback command when polling. Polling set to 2 sec"),
   };
 
-  argparse_add_arguments(&parser, args, 5);
+  argparse_add_arguments(&parser, args, 6);
   argparse_parse_args(&parser);
 
   if (killaudioboot) {
@@ -159,9 +173,16 @@ int main(int argc, char** argv) {
     strncpy(argv[0], PROGRAM_NAME, strlen(argv[0]));
     prctl(PR_SET_NAME, (unsigned long)PROGRAM_NAME, 0, 0, 0);
 
-    pthread_t thread = create_thread(audio_start_auto);
-    pthread_setname_np(thread, THREAD_NAME);
-    pthread_detach(thread);
+    pthread_t audioboot_thread = create_thread(audio_start_auto);
+    pthread_setname_np(audioboot_thread, THREAD_NAME_AUDIOBOOT);
+    pthread_detach(audioboot_thread);
+
+    if (polling_command != NULL) {
+      pthread_t polling_thread = create_thread(poll_request);
+      pthread_setname_np(polling_thread, THREAD_NAME_POLL);
+      pthread_detach(polling_thread);
+    }
+
     pthread_exit(0);
   }
 
